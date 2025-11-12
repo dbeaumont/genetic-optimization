@@ -33,6 +33,12 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+/**
+ * Orchestrates the full lifecycle of the genetic search:
+ *  - reacts to start/stop/reset commands,
+ *  - streams incremental snapshots via SSE,
+ *  - evolves expression trees that approximate the provided points.
+ */
 @Service
 public class GeneticAlgorithmService {
 
@@ -60,6 +66,13 @@ public class GeneticAlgorithmService {
         this.objectMapper = objectMapper;
     }
 
+    // -------------------------------------------------------------------------
+    // Lifecycle & state control
+    // -------------------------------------------------------------------------
+
+    /**
+     * Starts a new run with the provided configuration and working set of points.
+     */
     public synchronized void start(RunRequest request) {
         stop();
         this.config = request.config();
@@ -69,6 +82,9 @@ public class GeneticAlgorithmService {
         currentTask = executor.submit(this::runAlgorithm);
     }
 
+    /**
+     * Attempts to halt the running worker thread.
+     */
     public synchronized void stop() {
         running.set(false);
         if (currentTask != null) {
@@ -76,6 +92,9 @@ public class GeneticAlgorithmService {
         }
     }
 
+    /**
+     * Stops the worker and clears any cached state (history/config/points).
+     */
     public synchronized void reset() {
         stop();
         history.clear();
@@ -99,6 +118,10 @@ public class GeneticAlgorithmService {
         return running.get();
     }
 
+    // -------------------------------------------------------------------------
+    // State exposure & streaming
+    // -------------------------------------------------------------------------
+
     public Optional<GenerationSnapshot> latestSnapshot() {
         return Optional.ofNullable(latestSnapshot);
     }
@@ -107,6 +130,9 @@ public class GeneticAlgorithmService {
         return history;
     }
 
+    /**
+     * Creates a lightweight view of the recorded generations that is cheap to serialize.
+     */
     public List<GenerationSnapshot> historySummary() {
         return history.stream()
                 .map(this::summarizeSnapshot)
@@ -126,6 +152,15 @@ public class GeneticAlgorithmService {
         return emitter;
     }
 
+    // -------------------------------------------------------------------------
+    // Genetic algorithm orchestration
+    // -------------------------------------------------------------------------
+
+    /**
+     * Core worker loop: evaluates the current population, captures a snapshot,
+     * emits it to subscribers, then breeds the next generation until the stop
+     * conditions are met (max generations or explicit stop).
+     */
     private void runAlgorithm() {
         try {
             if (points.isEmpty() || config == null) {
@@ -156,6 +191,10 @@ public class GeneticAlgorithmService {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Population bootstrap & fitness evaluation
+    // -------------------------------------------------------------------------
+
     private ExpressionNode[] initializePopulation(int populationSize) {
         ExpressionNode[] population = new ExpressionNode[populationSize];
         for (int i = 0; i < populationSize; i++) {
@@ -170,6 +209,10 @@ public class GeneticAlgorithmService {
         }
     }
 
+    /**
+     * Builds a serializable view of the current generation, including the curve points
+     * of the best solution so the frontend can draw it immediately.
+     */
     private GenerationSnapshot buildSnapshot(int generation, ExpressionNode[] population, double[] fitnesses) {
         List<PolynomialSolution> solutions = new ArrayList<>(population.length);
         for (int i = 0; i < population.length; i++) {
@@ -198,6 +241,9 @@ public class GeneticAlgorithmService {
         return new PolynomialSolution(expression, fitness, covered, error, expressionText);
     }
 
+    /**
+     * Maintains an in-memory ring buffer of the last X generations for charting.
+     */
     private void persistSnapshot(GenerationSnapshot snapshot) {
         history.add(snapshot);
         if (history.size() > MAX_HISTORY) {
@@ -205,6 +251,9 @@ public class GeneticAlgorithmService {
         }
     }
 
+    /**
+     * Broadcasts the latest snapshot to all connected SSE clients.
+     */
     private void sendToEmitters(GenerationSnapshot snapshot) {
         for (SseEmitter emitter : emitters) {
             safeSend(emitter, snapshot);
@@ -220,6 +269,10 @@ public class GeneticAlgorithmService {
             emitters.remove(emitter);
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Genetic operators (selection, crossover, mutation)
+    // -------------------------------------------------------------------------
 
     private ExpressionNode[] nextGeneration(ExpressionNode[] population, double[] fitnesses) {
         int populationSize = population.length;
@@ -243,6 +296,10 @@ public class GeneticAlgorithmService {
         return next;
     }
 
+    /**
+     * Simple tournament selection to bias towards high-fitness parents while
+     * still keeping some diversity.
+     */
     private ExpressionNode tournamentSelect(ExpressionNode[] population, double[] fitnesses) {
         int tournamentSize = Math.max(2, (int) Math.round(population.length * 0.05));
         ExpressionNode best = null;
@@ -267,12 +324,20 @@ public class GeneticAlgorithmService {
         return replaceSubtree(parent1, target, donor);
     }
 
+    /**
+     * Applies recursive mutations and re-validates constraints to avoid trees that
+     * exceed depth or node limits.
+     */
     private ExpressionNode mutate(ExpressionNode chromosome) {
         double rate = config.mutationRate() / 100.0;
         ExpressionNode mutated = mutateRecursive(chromosome, rate, 0);
         return ensureConstraints(mutated);
     }
 
+    /**
+     * Multi-objective fitness: reward number of covered points and penalize
+     * squared error to encourage both alignment and precision.
+     */
     private double fitness(ExpressionNode chromosome) {
         int covered = 0;
         double error = 0;
@@ -309,6 +374,10 @@ public class GeneticAlgorithmService {
         }
         return curve;
     }
+
+    // -------------------------------------------------------------------------
+    // Expression-tree helpers
+    // -------------------------------------------------------------------------
 
     private ExpressionNode generateConstrainedExpression() {
         ExpressionNode expr;
@@ -457,6 +526,10 @@ public class GeneticAlgorithmService {
         return current;
     }
 
+    /**
+     * Safely evaluates the expression tree at a given x, clamping dangerous cases
+     * (division by zero, log of non-positive numbers, overflows) to sane defaults.
+     */
     private double evaluateExpression(ExpressionNode node, double x) {
         double result;
         if (node instanceof ConstantNode constant) {
@@ -514,6 +587,9 @@ public class GeneticAlgorithmService {
         return clamp(span, 1d, CONSTANT_MAX);
     }
 
+    /**
+     * Removes heavy payloads (curve points, expression tree) for history responses.
+     */
     private GenerationSnapshot summarizeSnapshot(GenerationSnapshot snapshot) {
         PolynomialSolution best = summarizeSolution(snapshot.bestSolution());
         return new GenerationSnapshot(
