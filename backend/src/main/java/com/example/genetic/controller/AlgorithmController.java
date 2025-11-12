@@ -44,7 +44,7 @@ public class AlgorithmController {
                 algorithmService.isRunning(),
                 algorithmService.getConfig(),
                 algorithmService.latestSnapshot().orElse(null),
-                algorithmService.history()
+                algorithmService.historySummary()
         );
     }
 

@@ -13,6 +13,7 @@ import com.example.genetic.model.expression.UnaryNode;
 import com.example.genetic.model.expression.UnaryOperator;
 import com.example.genetic.model.expression.VariableNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -83,6 +84,17 @@ public class GeneticAlgorithmService {
         points = List.of();
     }
 
+    @PreDestroy
+    void shutdownExecutor() {
+        running.set(false);
+        if (currentTask != null) {
+            currentTask.cancel(true);
+        }
+        executor.shutdownNow();
+        emitters.forEach(SseEmitter::complete);
+        emitters.clear();
+    }
+
     public boolean isRunning() {
         return running.get();
     }
@@ -93,6 +105,12 @@ public class GeneticAlgorithmService {
 
     public List<GenerationSnapshot> history() {
         return history;
+    }
+
+    public List<GenerationSnapshot> historySummary() {
+        return history.stream()
+                .map(this::summarizeSnapshot)
+                .collect(Collectors.toList());
     }
 
     public GeneticConfig getConfig() {
@@ -356,8 +374,9 @@ public class GeneticAlgorithmService {
         if (Math.random() < 0.5) {
             return new VariableNode();
         }
-        double value = ThreadLocalRandom.current().nextDouble(CONSTANT_MIN, CONSTANT_MAX);
-        return new ConstantNode(value);
+        double span = explorationSpan();
+        double value = ThreadLocalRandom.current().nextDouble(-span, span);
+        return new ConstantNode(clamp(value, CONSTANT_MIN, CONSTANT_MAX));
     }
 
     private UnaryOperator randomUnaryOperator() {
@@ -378,7 +397,9 @@ public class GeneticAlgorithmService {
         }
         if (node instanceof ConstantNode constant) {
             if (Math.random() < rate) {
-                double delta = ThreadLocalRandom.current().nextDouble(-1.0, 1.0);
+                double span = explorationSpan();
+                double deltaRange = Math.max(0.1, span * 0.25);
+                double delta = ThreadLocalRandom.current().nextDouble(-deltaRange, deltaRange);
                 double newValue = clamp(constant.value() + delta, CONSTANT_MIN, CONSTANT_MAX);
                 return new ConstantNode(newValue);
             }
@@ -483,6 +504,38 @@ public class GeneticAlgorithmService {
 
     private double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private double explorationSpan() {
+        if (config == null) {
+            return CONSTANT_MAX;
+        }
+        double span = Math.max(1d, config.explorationRange());
+        return clamp(span, 1d, CONSTANT_MAX);
+    }
+
+    private GenerationSnapshot summarizeSnapshot(GenerationSnapshot snapshot) {
+        PolynomialSolution best = summarizeSolution(snapshot.bestSolution());
+        return new GenerationSnapshot(
+                snapshot.generation(),
+                best,
+                List.of(),
+                snapshot.timestamp(),
+                List.of()
+        );
+    }
+
+    private PolynomialSolution summarizeSolution(PolynomialSolution solution) {
+        if (solution == null) {
+            return null;
+        }
+        return new PolynomialSolution(
+                null,
+                solution.fitness(),
+                solution.pointsCovered(),
+                solution.totalError(),
+                solution.expression()
+        );
     }
 
     private record TreeStats(int depth, int nodeCount) { }
