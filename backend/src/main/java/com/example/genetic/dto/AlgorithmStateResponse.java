@@ -1,6 +1,6 @@
-package com.example.polyfit.dto;
+package com.example.genetic.dto;
 
-import com.example.polyfit.model.GenerationSnapshot;
+import com.example.genetic.model.GenerationSnapshot;
 import java.util.List;
 
 public record AlgorithmStateResponse(boolean running,

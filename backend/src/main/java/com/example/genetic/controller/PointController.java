@@ -1,7 +1,7 @@
-package com.example.polyfit.controller;
+package com.example.genetic.controller;
 
-import com.example.polyfit.model.Point;
-import com.example.polyfit.service.PointService;
+import com.example.genetic.model.Point;
+import com.example.genetic.service.PointService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import org.springframework.web.bind.annotation.*;

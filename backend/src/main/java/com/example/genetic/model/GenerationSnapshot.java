@@ -1,4 +1,4 @@
-package com.example.polyfit.model;
+package com.example.genetic.model;
 
 import java.time.Instant;
 import java.util.List;

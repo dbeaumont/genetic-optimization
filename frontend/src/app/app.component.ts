@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ApiService } from './services/api.service';
-import { AlgorithmStateResponse, GeneticConfig, GenerationSnapshot, Point, PolynomialSolution } from './models/domain.models';
+import { AlgorithmStateResponse, ExpressionNode, GeneticConfig, GenerationSnapshot, Point, PolynomialSolution } from './models/domain.models';
 import { ChartConfiguration } from 'chart.js';
 import { finalize, forkJoin } from 'rxjs';
 
@@ -13,7 +13,7 @@ import { finalize, forkJoin } from 'rxjs';
 export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('plotCanvas') plotCanvas?: ElementRef<HTMLCanvasElement>;
 
-  title = 'Polyfit Evolution';
+  title = 'Genetic Evolution';
   private plotBounds = { minX: -5, maxX: 5, minY: -5, maxY: 5 };
   configForm!: FormGroup;
   points: Point[] = [];
@@ -21,7 +21,8 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   latestSnapshot: GenerationSnapshot | null = null;
   history: GenerationSnapshot[] = [];
   saving = false;
-   readonly topDisplayCount = 5;
+  private readonly unarySymbols: Record<string, string> = { SIN: 'sin', COS: 'cos', EXP: 'exp', LOG: 'log' };
+  private readonly binarySymbols: Record<string, string> = { ADD: '+', SUBTRACT: '-', MULTIPLY: '*', DIVIDE: '/' };
   private source?: EventSource;
 
   fitnessChartConfig: ChartConfiguration<'line'>['data'] = {
@@ -238,13 +239,11 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     // draw polynomial
-    const coeffs = this.latestSnapshot?.bestSolution.coefficients;
-    if (coeffs) {
-      const pointsToPlot = curvePoints.length > 0 ? curvePoints : this.sampleCurveFromCoefficients(coeffs, minX, maxX);
+    if (curvePoints.length > 0) {
       ctx.strokeStyle = '#64b5f6';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      pointsToPlot.forEach((point, index) => {
+      curvePoints.forEach((point, index) => {
         const cx = toCanvasX(point.x);
         const cy = toCanvasY(point.y);
         if (index === 0) {
@@ -253,9 +252,6 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
           ctx.lineTo(cx, cy);
         }
       });
-      if (pointsToPlot.length === 0) {
-        ctx.moveTo(0, 0);
-      }
       ctx.stroke();
     }
   }
@@ -336,24 +332,44 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.renderPlot();
   }
 
-  private sampleCurveFromCoefficients(coeffs: number[], minX: number, maxX: number): Point[] {
-    const samples = 200;
-    const result: Point[] = [];
-    for (let i = 0; i <= samples; i++) {
-      const x = minX + (i / samples) * (maxX - minX);
-      result.push({ x, y: this.evaluateFunction(coeffs, x) });
+  describeNode(node: ExpressionNode): string {
+    switch (node.nodeType) {
+      case 'constant':
+        return node.value.toFixed(2);
+      case 'variable':
+        return 'x';
+      case 'unary':
+        return this.unarySymbols[node.operator] ?? node.operator.toLowerCase();
+      case 'binary':
+        return this.binarySymbols[node.operator] ?? node.operator.toLowerCase();
+      default:
+        return '?';
     }
-    return result;
   }
 
-  private evaluateFunction(coeffs: number[], x: number): number {
-    const base = coeffs[0]
-      + coeffs[1] * x
-      + coeffs[2] * Math.pow(x, 2)
-      + coeffs[3] * Math.pow(x, 3);
-    const sqrtTerm = coeffs[4] * Math.sqrt(Math.abs(x));
-    const denom = 1 + Math.abs(coeffs[5] ?? 0);
-    const value = (base + sqrtTerm) / denom;
-    return Number.isFinite(value) ? value : 0;
+  childNodes(node: ExpressionNode): ExpressionNode[] {
+    if (node.nodeType === 'unary') {
+      return [node.child];
+    }
+    if (node.nodeType === 'binary') {
+      return [node.left, node.right];
+    }
+    return [];
+  }
+
+  buildAsciiTree(node: ExpressionNode): string {
+    const lines: string[] = [];
+    const traverse = (current: ExpressionNode, prefix: string, isTail: boolean) => {
+      const connector = prefix ? `${prefix}${isTail ? '└─ ' : '├─ '}` : '';
+      lines.push(`${connector}${this.describeNode(current)}`);
+      const children = this.childNodes(current);
+      if (children.length === 0) {
+        return;
+      }
+      const nextPrefix = prefix + (isTail ? '   ' : '│  ');
+      children.forEach((child, index) => traverse(child, nextPrefix, index === children.length - 1));
+    };
+    traverse(node, '', true);
+    return lines.join('\n');
   }
 }

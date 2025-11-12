@@ -63,42 +63,40 @@
         <button (click)="exportPlot()">Sauvegarder l'image</button>
       </div>
       <canvas #plotCanvas width="800" height="400" (click)="handleCanvasClick($event)"></canvas>
-    </div>
-
-    <div class="panel candidates">
-      <h2>Fonctions candidates (Top {{ topDisplayCount }})</h2>
-      <div *ngIf="latestSnapshot?.topSolutions?.length; else noCandidates">
-        <div class="candidate-card" *ngFor="let solution of latestSnapshot?.topSolutions | slice:0:topDisplayCount; let idx = index">
-          <div class="candidate-rank">#{{ idx + 1 }}</div>
-          <p class="candidate-expression">{{ formatExpression(solution) }}</p>
-          <div class="candidate-meta">
-            <span>Fitness {{ solution.fitness | number:'1.0-0' }}</span>
-            <span>{{ solution.pointsCovered }} pts</span>
-            <span>Erreur {{ solution.totalError | number:'1.2-2' }}</span>
-          </div>
+      <div class="fitness-block">
+        <h3>Évolution de la fitness</h3>
+        <div class="current-summary" *ngIf="latestSnapshot">
+          <p>Génération {{ latestSnapshot?.generation }} – Fitness {{ latestSnapshot?.bestSolution.fitness | number:'1.0-0' }}</p>
+          <p>{{ latestSnapshot?.bestSolution.pointsCovered }} points couverts · erreur {{ latestSnapshot?.bestSolution.totalError | number:'1.2-2' }}</p>
+        </div>
+        <div class="chart-wrapper">
+          <canvas baseChart
+                  [data]="fitnessChartConfig"
+                  [options]="fitnessChartOptions"
+                  chartType="line"></canvas>
         </div>
       </div>
-      <ng-template #noCandidates>
-        <p class="hint">En attente de la première génération.</p>
-      </ng-template>
     </div>
 
-
-    <div class="panel fitness">
-      <h2>Évolution de la fitness</h2>
-      <div class="current-summary" *ngIf="latestSnapshot">
-        <p>Génération {{ latestSnapshot?.generation }} – Fitness {{ latestSnapshot?.bestSolution.fitness | number:'1.0-0' }}</p>
-        <p>{{ latestSnapshot?.bestSolution.pointsCovered }} points couverts · erreur {{ latestSnapshot?.bestSolution.totalError | number:'1.2-2' }}</p>
-      </div>
-      <div class="chart-wrapper">
-        <canvas baseChart
-                [data]="fitnessChartConfig"
-                [options]="fitnessChartOptions"
-                chartType="line"></canvas>
-      </div>
-      <div class="best-inline" *ngIf="latestSnapshot">
-        <p><strong>Solution optimale courante :</strong> {{ formatExpression(latestSnapshot?.bestSolution) }}</p>
-      </div>
+    <div class="panel solution">
+      <h2>Solution optimale</h2>
+      <ng-container *ngIf="latestSnapshot; else noSolution">
+        <div class="best-inline">
+          <p class="solution-expression">{{ formatExpression(latestSnapshot?.bestSolution) }}</p>
+          <p class="solution-meta">
+            Fitness {{ latestSnapshot?.bestSolution.fitness | number:'1.0-0' }} ·
+            {{ latestSnapshot?.bestSolution.pointsCovered }} points ·
+            erreur {{ latestSnapshot?.bestSolution.totalError | number:'1.2-2' }}
+          </p>
+          <ng-container *ngIf="latestSnapshot?.bestSolution.expressionTree as tree">
+            <p class="tree-title">Vue arborescente ASCII</p>
+            <pre class="expression-tree">{{ buildAsciiTree(tree) }}</pre>
+          </ng-container>
+        </div>
+      </ng-container>
+      <ng-template #noSolution>
+        <p class="hint">Lancez l'algorithme pour visualiser la solution optimale.</p>
+      </ng-template>
     </div>
   </section>
 

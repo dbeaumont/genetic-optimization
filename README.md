@@ -1,4 +1,4 @@
-# Projet Polyfit Evolution
+# Projet Genetic Evolution
 
 Application complète (Spring Boot + Angular) pour la recherche d'une fonction polynomiale de degré ≤ 3 qui passe par un maximum de points fournis à l'aide d'un algorithme génétique. L'ensemble est conteneurisé (Docker) et orchestré avec Docker Compose.
 

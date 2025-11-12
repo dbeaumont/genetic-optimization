@@ -1,8 +1,8 @@
-package com.example.polyfit.model;
+package com.example.genetic.model;
 
-import java.util.Arrays;
+import com.example.genetic.model.expression.ExpressionNode;
 
-public record PolynomialSolution(double[] coefficients,
+public record PolynomialSolution(ExpressionNode expressionTree,
                                  double fitness,
                                  int pointsCovered,
                                  double totalError,
@@ -15,7 +15,7 @@ public record PolynomialSolution(double[] coefficients,
     @Override
     public String toString() {
         return "PolynomialSolution{" +
-                "coefficients=" + Arrays.toString(coefficients) +
+                "expressionTree=" + expressionTree +
                 ", fitness=" + fitness +
                 ", pointsCovered=" + pointsCovered +
                 ", totalError=" + totalError +

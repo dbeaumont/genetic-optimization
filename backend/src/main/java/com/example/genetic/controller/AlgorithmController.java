@@ -1,9 +1,9 @@
-package com.example.polyfit.controller;
+package com.example.genetic.controller;
 
-import com.example.polyfit.dto.AlgorithmStateResponse;
-import com.example.polyfit.dto.GeneticConfig;
-import com.example.polyfit.dto.RunRequest;
-import com.example.polyfit.service.GeneticAlgorithmService;
+import com.example.genetic.dto.AlgorithmStateResponse;
+import com.example.genetic.dto.GeneticConfig;
+import com.example.genetic.dto.RunRequest;
+import com.example.genetic.service.GeneticAlgorithmService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

@@ -1,4 +1,4 @@
-package com.example.polyfit.dto;
+package com.example.genetic.dto;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

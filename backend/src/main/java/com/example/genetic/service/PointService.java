@@ -1,6 +1,6 @@
-package com.example.polyfit.service;
+package com.example.genetic.service;
 
-import com.example.polyfit.model.Point;
+import com.example.genetic.model.Point;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 

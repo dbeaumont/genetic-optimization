@@ -1,6 +1,6 @@
-package com.example.polyfit.dto;
+package com.example.genetic.dto;
 
-import com.example.polyfit.model.Point;
+import com.example.genetic.model.Point;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;

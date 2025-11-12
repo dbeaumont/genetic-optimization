@@ -14,8 +14,17 @@ export interface GeneticConfig {
   explorationRange: number;
 }
 
+export type ExpressionNode =
+  | { nodeType: 'constant'; value: number }
+  | { nodeType: 'variable' }
+  | { nodeType: 'unary'; operator: UnaryOperator; child: ExpressionNode }
+  | { nodeType: 'binary'; operator: BinaryOperator; left: ExpressionNode; right: ExpressionNode };
+
+export type UnaryOperator = 'SIN' | 'COS' | 'EXP' | 'LOG';
+export type BinaryOperator = 'ADD' | 'SUBTRACT' | 'MULTIPLY' | 'DIVIDE';
+
 export interface PolynomialSolution {
-  coefficients: number[];
+  expressionTree: ExpressionNode;
   fitness: number;
   pointsCovered: number;
   totalError: number;
