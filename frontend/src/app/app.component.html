@@ -1,0 +1,105 @@
+<div class="app-shell">
+  <header>
+    <h1>{{ title }}</h1>
+    <div class="run-controls">
+      <button (click)="reset()" class="info" [disabled]="saving">Réinitialiser</button>
+      <button (click)="start()" [disabled]="running || saving" class="primary">Démarrer</button>
+      <button (click)="stop()" [disabled]="!running" class="danger">Stopper</button>
+      <span class="status" [class.running]="running">{{ running ? 'En cours' : 'À l\'arrêt' }}</span>
+    </div>
+  </header>
+
+  <section class="grid">
+    <div class="panel config">
+      <h2>Paramètres de l'algorithme</h2>
+      <form [formGroup]="configForm">
+        <div class="form-grid">
+          <label>Population
+            <input type="number" formControlName="populationSize">
+          </label>
+          <label>Générations max
+            <input type="number" formControlName="maxGenerations">
+          </label>
+          <label>Temps entre itérations (ms)
+            <input type="number" formControlName="iterationDelayMs">
+          </label>
+          <label>Taux mutation (%)
+            <input type="number" step="0.1" formControlName="mutationRate">
+          </label>
+          <label>Taux crossover (%)
+            <input type="number" step="0.1" formControlName="crossoverRate">
+          </label>
+          <label>Élitisme (%)
+            <input type="number" step="0.1" formControlName="elitismRate">
+          </label>
+          <label>Tolérance d'alignement
+            <input type="number" step="0.01" formControlName="alignmentTolerance">
+          </label>
+          <label>Amplitude d'exploration
+            <input type="number" step="0.1" formControlName="explorationRange">
+          </label>
+        </div>
+      </form>
+
+      <div class="points-editor">
+        <h3>Points à traverser</h3>
+        <div class="point-actions top">
+          <button (click)="addPoint()">Ajouter un point</button>
+          <button (click)="randomizePoints()">Points aléatoires</button>
+          <button (click)="savePoints()" [disabled]="saving">Sauvegarder</button>
+        </div>
+        <div class="point-row" *ngFor="let point of points; let i = index; trackBy: trackByIndex">
+          <input type="number" [(ngModel)]="points[i].x" placeholder="x">
+          <input type="number" [(ngModel)]="points[i].y" placeholder="y">
+          <button (click)="removePoint(i)">×</button>
+        </div>
+        <p class="hint">Astuce : cliquez sur le graphe pour ajouter des points manuellement.</p>
+      </div>
+    </div>
+
+    <div class="panel visualization">
+      <h2>Visualisation des points</h2>
+      <div class="viz-actions">
+        <button (click)="exportPlot()">Sauvegarder l'image</button>
+      </div>
+      <canvas #plotCanvas width="800" height="400" (click)="handleCanvasClick($event)"></canvas>
+    </div>
+
+    <div class="panel candidates">
+      <h2>Fonctions candidates (Top {{ topDisplayCount }})</h2>
+      <div *ngIf="latestSnapshot?.topSolutions?.length; else noCandidates">
+        <div class="candidate-card" *ngFor="let solution of latestSnapshot?.topSolutions | slice:0:topDisplayCount; let idx = index">
+          <div class="candidate-rank">#{{ idx + 1 }}</div>
+          <p class="candidate-expression">{{ formatExpression(solution) }}</p>
+          <div class="candidate-meta">
+            <span>Fitness {{ solution.fitness | number:'1.0-0' }}</span>
+            <span>{{ solution.pointsCovered }} pts</span>
+            <span>Erreur {{ solution.totalError | number:'1.2-2' }}</span>
+          </div>
+        </div>
+      </div>
+      <ng-template #noCandidates>
+        <p class="hint">En attente de la première génération.</p>
+      </ng-template>
+    </div>
+
+
+    <div class="panel fitness">
+      <h2>Évolution de la fitness</h2>
+      <div class="current-summary" *ngIf="latestSnapshot">
+        <p>Génération {{ latestSnapshot?.generation }} – Fitness {{ latestSnapshot?.bestSolution.fitness | number:'1.0-0' }}</p>
+        <p>{{ latestSnapshot?.bestSolution.pointsCovered }} points couverts · erreur {{ latestSnapshot?.bestSolution.totalError | number:'1.2-2' }}</p>
+      </div>
+      <div class="chart-wrapper">
+        <canvas baseChart
+                [data]="fitnessChartConfig"
+                [options]="fitnessChartOptions"
+                chartType="line"></canvas>
+      </div>
+      <div class="best-inline" *ngIf="latestSnapshot">
+        <p><strong>Solution optimale courante :</strong> {{ formatExpression(latestSnapshot?.bestSolution) }}</p>
+      </div>
+    </div>
+  </section>
+
+</div>

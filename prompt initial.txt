@@ -1,0 +1,16 @@
+Crée un prompt exhaustif pour concevoir une application professionnelle qui identifie une fonction passant par un maximum de points fournis grâce à un algorithme évolutionnaire de type génétique. L’architecture attendue combine un backend Spring Boot et un frontend Angular, chacun empaqueté dans son propre conteneur Docker puis orchestrés via Docker Compose.
+
+Exigences fonctionnelles :
+- Générateur de fonctions de degré ≤ 3 utilisant racines carrées, multiplications, additions, soustractions, divisions et parenthèses.
+- Contrôles pour démarrer/stopper un processus d’évolution automatique et réinitialiser complètement la population.
+- Paramètres ajustables (taille de population, mutation, croisement, critères d’arrêt, élitisme, tempo d’itération) exposés dans l’interface.
+
+Interface utilisateur :
+- Bloc configuration : réglage de tous les paramètres génétiques, commandes start/stop/reset et délai entre générations.
+- Bloc visualisation : nuage de points et fonction optimale courante, rafraîchis à chaque génération, avec bouton de sauvegarde d’image.
+- Bloc fitness temps réel : graphique montrant l’évolution de la valeur économique (fitness) de la meilleure solution génération après génération.
+
+Backend :
+- API Spring Boot permettant de gérer les points, configurer/lancer/arrêter l’algorithme, exposer les générations via REST et éventuellement WebSocket/SSE.
+- Algorithme optimisé pour maximiser le nombre de points traversés tout en minimisant l’erreur, avec fitness ajustable et élitisme.
+- Fournir les Dockerfile frontend/backend et le docker-compose assurant la communication réseau entre services.
